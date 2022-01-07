@@ -3,22 +3,25 @@ const { Engine, Render, Runner, World, Bodies, Body, Events } = Matter
 // create an engine
 const engine = Engine.create()
 
-engine.world.gravity.y = 0
-
 const { world } = engine
 
-const width = 600
-const height = 600
-const cells = 3
+world.gravity.y = 0
+
+const cellsHorizontal = 12
+const cellsVertical = 9
+const width = window.innerWidth * 0.9954333
+const height = window.innerHeight * 0.9954333
 
 // unit length for rectangle
-const unitLength = width / cells
+const unitLengthX = width / cellsHorizontal
+const unitLengthY = height / cellsVertical
 
 // create a renderer
 const render = Render.create({
   element: document.body,
   engine: engine,
   options: {
+    wireframes: false,
     width,
     height
   }
@@ -56,22 +59,22 @@ const shuffle = (arr) => {
 }
 
 // Maze generation
-const grid = Array(cells)
+const grid = Array(cellsVertical)
   .fill(null)
-  .map(() => Array(cells).fill(false))
+  .map(() => Array(cellsHorizontal).fill(false))
 
 // vertical walls
-const verticals = Array(cells)
+const verticals = Array(cellsVertical)
   .fill(null)
-  .map(() => Array(cells - 1).fill(false))
+  .map(() => Array(cellsHorizontal - 1).fill(false))
 
 // horizontal walls
-const horizontals = Array(cells - 1)
+const horizontals = Array(cellsVertical - 1)
   .fill(null)
-  .map(() => Array(cells).fill(false))
+  .map(() => Array(cellsHorizontal).fill(false))
 
-const startRow = Math.floor(Math.random() * cells)
-const startColumn = Math.floor(Math.random() * cells)
+const startRow = Math.floor(Math.random() * cellsVertical)
+const startColumn = Math.floor(Math.random() * cellsHorizontal)
 
 // this function is gonna iterate over the maze
 const stepThroughCell = (row, column) => {
@@ -96,7 +99,7 @@ const stepThroughCell = (row, column) => {
     const [nextRow, nextColumn, direction] = neighbor
 
     // see if that neighbor is out of bound
-    if (nextRow < 0 || nextRow >= cells || nextColumn < 0 || nextColumn >= cells) {
+    if (nextRow < 0 || nextRow >= cellsVertical || nextColumn < 0 || nextColumn >= cellsHorizontal) {
       // don't wanna run any code for this neighbor pair, continue to the next iteration
       continue
     }
@@ -121,7 +124,7 @@ const stepThroughCell = (row, column) => {
   }
 }
 
-stepThroughCell(startColumn, startColumn)
+stepThroughCell(startRow, startColumn)
 
 // iterate over the horizonatal array
 // recerives the inner array
@@ -131,9 +134,12 @@ horizontals.forEach((row, rowIndex) => {
       return
     }
 
-    const wall = Bodies.rectangle(columnIndex * unitLength + unitLength / 2, rowIndex * unitLength + unitLength, unitLength, 5, {
+    const wall = Bodies.rectangle(columnIndex * unitLengthX + unitLengthX / 2, rowIndex * unitLengthY + unitLengthY, unitLengthX, 5, {
       label: 'wall',
-      isStatic: true
+      isStatic: true,
+      render: {
+        fillStyle: '#DD4A48'
+      }
     })
     World.add(world, wall)
   })
@@ -145,43 +151,53 @@ verticals.forEach((row, rowIndex) => {
       return
     }
 
-    const wall = Bodies.rectangle(columnIndex * unitLength + unitLength, rowIndex * unitLength + unitLength / 2, 5, unitLength, {
+    const wall = Bodies.rectangle(columnIndex * unitLengthX + unitLengthX, rowIndex * unitLengthY + unitLengthY / 2, 5, unitLengthY, {
       label: 'wall',
-      isStatic: true
+      isStatic: true,
+      render: {
+        fillStyle: '#9BDEAC'
+      }
     })
     World.add(world, wall)
   })
 })
 
 // Goal
-const goal = Bodies.rectangle(width - unitLength / 2, height - unitLength / 2, unitLength * 0.7, unitLength * 0.7, {
+const goal = Bodies.rectangle(width - unitLengthX / 2, height - unitLengthY / 2, unitLengthX * 0.7, unitLengthY * 0.7, {
   label: 'goal',
-  isStatic: true
+  isStatic: true,
+  render: {
+    fillStyle: '#FF0075'
+  }
 })
 World.add(world, goal)
 
 // Ball
-const ball = Bodies.circle(unitLength / 2, unitLength / 2, unitLength / 4, {
-  label: 'ball'
+const ballRadius = Math.min(unitLengthX, unitLengthY) / 4
+const ball = Bodies.circle(unitLengthX / 2, unitLengthY / 2, ballRadius, {
+  label: 'ball',
+  render: {
+    fillStyle: '#3DB2FF'
+  }
 })
 World.add(world, ball)
 
 document.addEventListener('keydown', (event) => {
   const { x, y } = ball.velocity
 
-  if (event.keyCode === 87) {
+  if (event.keyCode === 87 || event.keyCode === 38) {
     Body.setVelocity(ball, { x, y: y - 5 })
   }
 
-  if (event.keyCode === 68) {
+  if (event.keyCode === 68 || event.keyCode === 39) {
     Body.setVelocity(ball, { x: x + 5, y })
   }
 
-  if (event.keyCode === 83) {
+  if (event.keyCode === 83 || event.keyCode === 40) {
     Body.setVelocity(ball, { x, y: y + 5 })
   }
 
-  if (event.keyCode === 65) {
+  if (event.keyCode === 65 || event.keyCode === 37) {
     Body.setVelocity(ball, { x: x - 5, y })
   }
 })
@@ -192,6 +208,10 @@ Events.on(engine, 'collisionStart', (event) => {
     const labels = ['ball', 'goal']
 
     if (labels.includes(collision.bodyA.label) && labels.includes(collision.bodyB.label)) {
+      document.querySelector('.winner').classList.remove('hidden')
+
+      document.querySelector('.btn').classList.remove('hidden')
+
       world.gravity.y = 1
       world.bodies.forEach((body) => {
         if (body.label === 'wall') {
